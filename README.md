@@ -20,3 +20,5 @@ Set the ImageSourceFolder value in CannonConfig.json to "D:\\MemeCannon\\Ammo\\"
 If you have not run the app previously, it will prompt you to Authorize this app to tweet using your Twitter Account. Copy the PIN after authorizing on the Twitter Website and paste it into the MemeCannon prompt. It will save these values into the CannonConfig.json as the AccessToken and the AccessTokenSecret. Currently only supports a single Twitter Account.
 
 Choose your campaign and if you want to include the default hashtags.
+
+Note: [campaign]\hashtags\filenames.json keeps track of the filenames that the MemeCannon has posted previously. Just empty out the  array '[]' to start over. 
