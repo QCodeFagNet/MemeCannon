@@ -30,71 +30,27 @@ namespace MemeCannon
 
 		static void Main(string[] args)
 		{
-			Initialize();
-			Engage();
-			//Test();
-		}
-
-		/// <summary>
-		/// Do some tests with logged in users
-		/// </summary>
-		private static void Test()
-		{
-			//jackass.wtf
-			string ck = "Lgo65DM9RnhMMelpJ52s7Bant";
-			string cs = "DVkV7VKBR5jmZEJk5BDCfGca52SWIPSpJScAxVi3C0iyg2DRPJ";
-			// AccessToken and secret after we've first granted access to the app, otherwise ya gotta do it every time. After the first time, these values remain static. Save locally for ease of use.
-			string zAT = "4830873281-wQ85l83bmQJzqtmqfgLczeMV2CvmTxq7qt2320u";
-			string zATS = "i0clTXE6jtsaLuEpeWaA3Wfhh4sYTAEq4cE8XDosZpJSv";
-
-			Auth.SetUserCredentials(ck, cs, zAT, zATS);
-			IAuthenticatedUser authenticatedUser = User.GetAuthenticatedUser();
-
-			ITwitterCredentials appCreds = Auth.SetApplicationOnlyCredentials(ck, cs);
-			// This method execute the required webrequest to set the bearer Token
-			bool wtf = Auth.InitializeApplicationOnlyCredentials(appCreds);
-
-			// Create a new set of credentials for the application.
-			TwitterCredentials appCredentials = new TwitterCredentials(twitterConsumerKey, twitterConsumerSecret);
-			//TwitterCredentials appCredentials2 = new TwitterCredentials(ck, cs);
-
-			IAuthenticationContext authenticationContext = AuthFlow.InitAuthentication(appCredentials);
-			ProcessStartInfo psi = new ProcessStartInfo(authenticationContext.AuthorizationURL)
+			try
 			{
-				UseShellExecute = true,
-				Verb = "open"
-			};
-
-			//Process.Start(authenticationContext.AuthorizationURL);
-			Process.Start(psi);
-
-			// Ask the user to enter the pin code given by Twitter
-			string pinCode = Console.ReadLine();
-
-			// With this pin code it is now possible to get the credentials back from Twitter
-			ITwitterCredentials userCredentials = AuthFlow.CreateCredentialsFromVerifierCode(pinCode, authenticationContext);
-
-			// Save off the accessToken and accessTokenSecret
-			string at = userCredentials.AccessToken;
-			string ats = userCredentials.AccessTokenSecret;
-			string bt = userCredentials.ApplicationOnlyBearerToken;
-			bool booltest1 = userCredentials.AreSetupForApplicationAuthentication();
-			bool booltest2 = userCredentials.AreSetupForUserAuthentication();
-
-
-			// Use the user credentials in your application
-			Auth.SetCredentials(userCredentials);
-			IAuthenticatedUser authenticatedUser2 = User.GetAuthenticatedUser();
-
+				Initialize();
+				Engage();
+			}
+			catch (Exception ex)
+			{
+				Console.WriteLine(ex.Message);
+			}
 		}
+
 
 		/// <summary>Load and fire the MemeCannon</summary>
 		private static void Engage()
 		{
 			Dictionary<int, string> filePaths = DisplayMenu();
 			string response = Console.ReadLine();
-			Console.WriteLine("Include default Hashtags? (y/n)");
+
+			Console.Write("Include default Hashtags? (y/n) : ");
 			string addDefault = Console.ReadLine();
+			
 			bool addDefaultHashtags = false;
 			if (addDefault.ToLower().Equals("y", StringComparison.InvariantCulture))
 				addDefaultHashtags = true;
@@ -134,7 +90,6 @@ namespace MemeCannon
 			if (Program.CannonCfg.AccessToken.Length == 0) 
 			{ 
 				UpdateUserSettings();
-				FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
 			}
 
 			Auth.SetUserCredentials(twitterConsumerKey, twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
@@ -169,6 +124,8 @@ namespace MemeCannon
 			// Save off the accessToken and accessTokenSecret
 			Program.CannonCfg.AccessToken = userCredentials.AccessToken;
 			Program.CannonCfg.AccessTokenSecret = userCredentials.AccessTokenSecret;
+
+			FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
 		}
 
 		private static void DisplayFrameworkName()
@@ -188,7 +145,7 @@ namespace MemeCannon
 			//Remove the 'hashtags' directory since we don't want to process that.
 			Dictionary<int, string> dirs = di.GetDirectories().Where(n => !n.Name.Equals("hashtags")).Select(p => p.FullName).OrderBy(n => n).ToDictionary(p => key++);
 			// Now output the menu
-			Console.WriteLine("Select target:");
+			Console.WriteLine("\nSelect target:");
 			foreach(KeyValuePair<int, string> kvp in dirs)
 			{
 				string strang = kvp.Value.Split('\\').Last(); // Should get us the Subject, not the full path
@@ -221,6 +178,10 @@ namespace MemeCannon
 			postedFileNames = FileHelper.ReadJSONFromFile(jsonpath).ToObject<List<string>>().ToList();
 
 			existingFileNames = Directory.EnumerateFiles(path).Where(n => !postedFileNames.Contains(n)).OrderBy(n => Guid.NewGuid()).ToList();
+
+			Console.ForegroundColor = ConsoleColor.DarkGreen;
+			Console.WriteLine("\nFiring...");
+			Console.ResetColor();
 
 			int counter = 0;
 			foreach (string filename in existingFileNames)
@@ -303,18 +264,15 @@ namespace MemeCannon
 			int hashtagCount = Program.CannonCfg.HashTagCount;
 			Random rnd = new Random();
 			string path = String.Format(@"{0}\hashtags\hashtags.txt", memePath);
-			
-			//if (addDefaultHashtags)
-			//	sb.Append("#Trump2020 #QAnon "); // Add in the one tag we always want
 
 			if ((addDefaultHashtags) && (Program.CannonCfg.DefaultHashtags.Count > 0))
 			{
-				Program.CannonCfg.DefaultHashtags.ForEach(h => sb.Append(h));
+				Program.CannonCfg.DefaultHashtags.ForEach(h => sb.Append(String.Format("{0} ", h)));
 			}
 			
 			// get the list of hashtags
 			List<string> hashtags = ReadHashtags(path);
-			// get a random set of [3] hashtags
+			// get a random set of hashtags
 			for (int eye = 0; eye < hashtagCount; eye++)
 			{
 				bool ok = false;
@@ -325,6 +283,7 @@ namespace MemeCannon
 					//Dont add a duplicate
 					if (!sb.ToString().Contains(hash, StringComparison.InvariantCulture))
 					{
+						// Put the hash back in since the split took it out
 						sb.Append(String.Format("#{0} ", hash));
 						ok = true;
 					}
