@@ -26,21 +26,27 @@ Note: [campaign]\hashtags\filenames.json keeps track of the filenames that the M
 
 # Q&A
 >.NET Core, should run cross platform
+
 It's just a small console app that looks in a specific folder for images, and posts them to twitter with hashtags. I organize memes in different folders X:\MemeCannon\Ammo\Biden, X:\MemeCannon\Ammo\Bernie and it builds a menu of the different folders. You select which folder/campaign to run
 
 >I've come across a fatal flaw in distributing this as a client app, my Twitter Developer keys cannot be secured in it's current config.
+
 I have a couple potential solutions, but not enough time to work it out. It works now if you have a Twitter Dev account.
  
 >what about chanigng out your keys?
+
 Sacrificial lamb technique? maybe, I figure @ jack would just kill off the whole acct. It's NP to change out the keys and there's directions at the github. It even comes with a sample comey 3 meme ammopack.
 
 >Get my own Twiiter Dev account? how long does that usually take.
+
 I had to wait a couple weeks, but that included going back and forth on the description of my app with Twitter not meeting their guidelines. YMMV. I don't think it matters what you are describing as your app, because once you are in, you can make more apps (10?) without waiting around.
 
 >size
+
 4MB Total + your memes.
  
 >do i need to download just the release and unpack?
+
 Ya unless you have Visual Studio all set up and ready to build. Extract to where you want it. Find and edit the MemeCannon.dll.config so that it contains your Twitter API ConsumerKey/secret. In the source it's app.config, but that changes to MemeCannon.dll.config when you build. Run MemeCannon.exe when you're all configured.
   
 # WARNING!
