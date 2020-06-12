@@ -23,6 +23,7 @@ The 'Default Hashtags' are hashtags that you can include with every meme tweet. 
 Set the ImageSourceFolder to a folder that includes many folders of memes ready for  the MemeCannon. Assuming your folder structure looks  something like this:
 
 D:\MemeCannon\Ammo\Comey\hashtags
+
 D:\MemeCannon\Ammo\Clapper\hashtags
 
 Set the ImageSourceFolder value in D:\MemeCannon\CannonConfig.json to "D:\\MemeCannon\\Ammo\\"
