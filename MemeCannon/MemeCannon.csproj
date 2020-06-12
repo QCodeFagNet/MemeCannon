@@ -3,8 +3,10 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
-    <ApplicationIcon>0a9986c67820f079b3917c23b93b482e01fcda22bbe6d35a53dc83ae7975dc54.ico</ApplicationIcon>
+    <ApplicationIcon>kek.ico</ApplicationIcon>
     <StartupObject>MemeCannon.Program</StartupObject>
+    <AssemblyVersion>1.0.0.2</AssemblyVersion>
+    <FileVersion>1.0.0.2</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">

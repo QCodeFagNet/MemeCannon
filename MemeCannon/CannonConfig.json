@@ -11,5 +11,7 @@
 		"#ObamaKnew"
 	],
 	"HashTagCount": 2,
-	"ImageSourceFolder": "X:\\MemeCannon\\Ammo\\"
+	"MinimumDelay": 1,
+	"MaximumDelay": 3,
+	"ImageSourceFolder": "F:\\MemeCannon\\Ammo\\"
 }

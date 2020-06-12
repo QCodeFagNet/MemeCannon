@@ -17,10 +17,17 @@ namespace MemeCannon
 		public int HashTagCount { get; set; }
 		/// <summary>The Root Folder that contains all the MemeAmmo folders IE: X:\MemeCannon\Ammo</summary>
 		public string ImageSourceFolder { get; set; }
-				
+		
+		/// <summary>The minimum length of time in minutes to wait between posts</summary>
+		public int MinimumDelay { get; set; }
+		/// <summary>The maximum length of time in minutes to wait between posts</summary>
+		public int MaximumDelay { get; set; }
+
 		public CannonConfig() 
 		{
 			this.DefaultHashtags = new List<string>();
+			this.MinimumDelay = 1;
+			this.MaximumDelay = 3;
 		}
 	}
 }
