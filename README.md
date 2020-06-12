@@ -4,9 +4,11 @@ Functions using the Twitter API. You MUST have a Twitter Developer account. They
 Everything is well below their spamlimits, 1-2 tweets per minute. No install, just run. I've been using it with MemeFarmers mega meme archives for a couple months. Turn it on and it just runs thru 500+ files until you stop it or it's done. It's running right now.
 
 X:\MemeCannon\Bernie <- Campaign folder
+
 X:\MemeCannon\Biden\hashtags <- campaign sub folder that contains configuration information
 
 Builds out a dynamic menu and you choose your campaign/folder and default hashtags. 
+
 Everything funnels thru your Twitter Developer acct. <5MB and is open source, except for my app keys.
 
 # Install MemeCannon
