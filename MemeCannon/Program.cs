@@ -290,7 +290,7 @@ namespace MemeCannon
 			Program.CannonCfg.AccessToken = userCredentials.AccessToken;
 			Program.CannonCfg.AccessTokenSecret = userCredentials.AccessTokenSecret;
 
-			FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
+			FileHelper.WriteJSONToFile("./CannonConfig.json", Program.CannonCfg.ToJson());
 		}
 
 		private static void DisplayFrameworkName()
@@ -491,7 +491,7 @@ namespace MemeCannon
 			{
 				DateTime now = DateTime.Now; 
 				DateTime first = Program.TweetTimes.First();
-				TimeSpan ts = first - now;
+				TimeSpan ts = now - first;
 
 				Program.TweetTimes.Add(now);
 				Program.TweetsPerHour = Program.TweetTimes.Count;

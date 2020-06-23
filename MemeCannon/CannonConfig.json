@@ -1,14 +1,9 @@
 {
-	"AccessToken": "",
-	"AccessTokenSecret": "",
+	"AccessToken": "1274334675738255367-pSLOCjhoIoEwg9rxtZaU4qafesItGL",
+	"AccessTokenSecret": "MaEMsgLO1b2xm9V6ygGQpRmNnaTZtjxEOss9hwxJv33VX",
 	"DefaultHashtags": [
 		"#WWG1WGA",
-		"#ObamaGate",
-		"#ComeyKnew",
-		"#ClintonKnew",
-		"#ClapperKnew",
-		"#BrennanKnew",
-		"#ObamaKnew"
+		"#ObamaGate"
 	],
 	"HashTagCount": 2,
 	"MinimumDelay": 1,
