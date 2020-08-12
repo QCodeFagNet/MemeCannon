@@ -31,8 +31,8 @@ D:\MemeCannon\Ammo\Clapper\hashtags
 Set the ImageSourceFolder value in D:\MemeCannon\CannonConfig.json to "D:\\MemeCannon\\Ammo\\"
 
 5) Store Memes in their Campaign folder [Comey] below the 'Ammo' folder.
-6) Edit the random hashtags for each campaign in 'D:\MemeCannon\Ammo\Comey\hashtags\hashtags.txt' and 'D:\MemeCannon\Ammo\Comey\hashtags\mentions.txt'.
-7) Compile and run.
+6) Edit the random hashtags and mentions for each campaign in 'D:\MemeCannon\Ammo\Comey\hashtags\CampaignConfig.json'.
+7) Compile and run. (Don't need to compile if you are just downloading the release)
 
 If you have not run the app previously, it will prompt you to Authorize this app to tweet using your Twitter Account. Copy the PIN after authorizing on the Twitter Website and paste it into the MemeCannon prompt. It will save these values into the CannonConfig.json as the AccessToken and the AccessTokenSecret. Currently only supports a single Twitter Account. A D:\MemeCannon2 install with it's own CannonConfig.json, could operate using the same Ammo folders but a different Twitter account in parallel. Mind the rate limits that are associated with each Twitter App, only 300 tweets per 3 hrs. https://developer.twitter.com/en/docs/basics/rate-limits. Using the default MemeCannon config where it tweets every 1-3 minutes, you should end up with around 25 avg tweets per hour, but it could theoretically go as high as 60 TPH. The MemeCannon has a safety to shut down when you cross the 60 TPH limit to avoid having your app or user banned.
 
@@ -49,8 +49,9 @@ End app by closing it down, or [ctrl-C]
 * MemeCannon.dll.config - Stores your Twitter API Application Consumer Key and Secret. Once this is working you won't touch this file again.
 * CannonConfig.json - Stores all the config information that the MemeCannon needs. The Twitter accounts access token and secret, the default hashtags, number of campaign hashtags to include, minimum and maximum delay between tweets, and the ImageSourceFolder that tells the app how to build the menu and where to find the images.
 * filenames.json - Stores the filenames of all the images the MemeCannon has posted for this campaign. It won't post images that are in this file, just empty out the  array '[]' to start over. 
-* hashtags.txt - Stores the '#' delimited list of hashtags to choose from for this campaign. IE: #ComeyKnew#BrennanKnew
-* mentions.txt - Stores the '@' delimited list of twitter users to mention when tweeting.
+* CampaignConfig.json (New in 1.0.0.4) - Allows users to override some of the default values for each campaign. This way you can include default hashtags in every tweet, as well as hashtag count, Min and Max delays per campaign.
+* [campaign]\hashtags\CampaignConfig.json\Hashtags - Stores the '#' delimited list of hashtags to choose from for this campaign. IE: #ComeyKnew#BrennanKnew
+* [campaign]\hashtags\CampaignConfig.json\Mentions - Stores the '@' delimited list of twitter users to mention when tweeting.
 
 # Q&A
 >What is this thing and can I run it? 
@@ -81,7 +82,7 @@ I had to wait a couple weeks, but that included going back and forth on the desc
 
 Set the D:\MemeCannon\CannonConfig.json\MinimumDelay and MaximumDelay to 1. If you wanted 1 TPH, set them both to 60.
 
->Can I edit hashtags.txt and mentions.txt while the app is running? I want to change my hashtags.
+>Can I edit hashtags.txt and mentions.txt or CampaignConfig.json while the app is running? I want to change my hashtags. 
 
 Go for it. Should be OK, but try and time it between tweets if you want to inject new hashtags or mentions.
 
