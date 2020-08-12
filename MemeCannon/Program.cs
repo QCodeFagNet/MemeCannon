@@ -134,11 +134,11 @@ namespace MemeCannon
 			
 			if (!response.ToLower().Equals("x", StringComparison.InvariantCulture))
 			{
-
+				Console.WriteLine();
 				Console.Write("Include default Hashtags? (y/n) : ");
 				bool addDefaultHashtags = GetAddData();
 
-				Console.Write("Include User Pings? (y/n) : ");
+				Console.Write("Include User Mentions? (y/n) : ");
 				bool addUserPings = GetAddData();
 
 				string memePath = GetMemePath(response, filePaths);
@@ -170,6 +170,9 @@ namespace MemeCannon
 				.Where(n => imageFileTypes.Any(ext => ext == Path.GetExtension(n).ToLower())) // filter by image ext
 				.OrderBy(n => Guid.NewGuid()).ToList(); // random order
 
+			//Grab a local instance of the new CampaignConfig, or upgrade us.
+			CampaignConfig config = GetCampaignConfig(path);
+
 			Console.ForegroundColor = ConsoleColor.DarkGreen;
 			Console.WriteLine("\nFiring...");
 			Console.ResetColor();
@@ -188,7 +191,7 @@ namespace MemeCannon
 				}
 
 				StringBuilder sb = new StringBuilder();
-				if (addPings) { AddMentions(sb, path); }
+				if (addPings) { AddMentions(sb, config); }
 				AddHashtags(sb, path, addDefaultHashtags); // reloads every time so we can inject new hashtags
 
 				//DOIT
@@ -200,7 +203,7 @@ namespace MemeCannon
 					FileHelper.WriteJSONToFile(String.Format(@"{0}\hashtags\filenames.json", path), postedFileNames);
 					string fn = Path.GetFileName(filename);
 					Console.ForegroundColor = ConsoleColor.Green;
-					Console.WriteLine(String.Format("{0}", fn));
+					Console.WriteLine("\n{0}", fn);
 					Console.ResetColor();
 
 					//Update the TweetPerHour data
@@ -210,8 +213,8 @@ namespace MemeCannon
 					if (counter < existingFileNames.Count)
 					{
 						//get a random pause time between configured min and max, in millisec
-						int min = (Program.CannonCfg.MinimumDelay * 60000);
-						int max = Program.CannonCfg.MaximumDelay * 60000;
+						int min = (config.MinimumDelay * 60000);
+						int max = config.MaximumDelay * 60000;
 						int sleep = rnd.Next(min, max);
 						Console.WriteLine(String.Format("{0}: Memecannon sleeping for [{1}] seconds", DateTime.Now, (sleep / 1000)));
 						SysThread.Thread.Sleep(sleep);
@@ -228,35 +231,50 @@ namespace MemeCannon
 
 		private static void Initialize()
 		{
-			Program.CampaignTimer = new Stopwatch();
-			Program.CampaignTimer.Start();
-			Console.ForegroundColor = ConsoleColor.Green;
-			Console.WriteLine("MemeCannon {0}", DateTime.Now);
-			Console.ResetColor();
-			DisplayFrameworkName();
+			try
+			{
+				Program.CampaignTimer = new Stopwatch();
+				Program.CampaignTimer.Start();
+				Console.ForegroundColor = ConsoleColor.Green;
+				Console.WriteLine("MemeCannon v{0} :: {1}", GetAssemblyVersion(), DateTime.Now);
+				Console.ResetColor();
+				DisplayFrameworkName();
 
-			EncryptSettings(); // Encrypt if needed
+				EncryptSettings(); // Encrypt if needed
 
-			Program.twitterConsumerKey = ConfigurationManager.AppSettings["twitterConsumerKey"];
-			Program.twitterConsumerSecret = ConfigurationManager.AppSettings["twitterConsumerSecret"];
+				Program.twitterConsumerKey = ConfigurationManager.AppSettings["twitterConsumerKey"];
+				Program.twitterConsumerSecret = ConfigurationManager.AppSettings["twitterConsumerSecret"];
 
-			if ((Program.twitterConsumerKey.Length == 0) || (Program.twitterConsumerSecret.Length == 0))
-				throw new Exception("Invalid Twitter API Keys. Check your app config.");
+				if ((Program.twitterConsumerKey.Length == 0) || (Program.twitterConsumerSecret.Length == 0))
+					throw new Exception("Invalid Twitter API Keys. Check your app config.");
 
-			Program.CannonCfg = FileHelper.ReadJSONObjectFromFile("CannonConfig.json").ToObject<CannonConfig>();
+				Program.CannonCfg = FileHelper.ReadJSONObjectFromFile("CannonConfig.json").ToObject<CannonConfig>();
 
-			//Check to see if we have already generated an accessToken and accessTokenSecret
-			// If not, generate and save so we don't have to do it every time
-			if (Program.CannonCfg.AccessToken.Length == 0) 
-			{ 
-				UpdateUserSettings();
+				//Check to see if we have already generated an accessToken and accessTokenSecret
+				// If not, generate and save so we don't have to do it every time
+				if (Program.CannonCfg.AccessToken.Length == 0)
+				{
+					UpdateUserSettings();
+				}
+				//Output default hashtags
+				Console.Write("Default Hashtags: ");
+				Program.CannonCfg.DefaultHashtags.ForEach(h => Console.Write("{0} ", h));
+
+				// Save this again to make sure everything is up to date
+				FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
+
+				Program.TweetTimes = new List<DateTime>();
+
+				Auth.SetUserCredentials(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
+				Console.WriteLine("\n*****************");
 			}
-			// Save this again to make sure everything is up to date
-			FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
-
-			Program.TweetTimes = new List<DateTime>();
-
-			Auth.SetUserCredentials(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
+			catch (Exception ex)
+			{
+				Console.ForegroundColor = ConsoleColor.Red;
+				Console.WriteLine(ex.Message);
+				Console.ResetColor();
+				Console.WriteLine("Bad Initialization data");
+			}
 		}
 
 		/// <summary>Prompt the user to Authorize the MemeCannon to make tweets</summary>
@@ -363,22 +381,22 @@ namespace MemeCannon
 		/// <param name="addDefaultHashtags"></param>
 		private static void AddHashtags(StringBuilder sb, string memePath, bool addDefaultHashtags)
 		{
-			int hashtagCount = Program.CannonCfg.HashTagCount;
-			Random rnd = new Random();
-			string path = String.Format(@"{0}\hashtags\hashtags.txt", memePath);
+			// Read in a new CampaignConfig each time se we can check for campaign updates while we're running
+			CampaignConfig config = GetCampaignConfig(memePath);
 
-			if ((addDefaultHashtags) && (Program.CannonCfg.DefaultHashtags.Count > 0))
+			List<string> currentTags = new List<string>();
+			int hashtagCount = config.HashTagCount;
+			Random rnd = new Random();
+
+			if ((addDefaultHashtags) && (config.DefaultHashtags.Count > 0))
 			{
-				Program.CannonCfg.DefaultHashtags.ForEach(h => sb.Append(String.Format("{0} ", h)));
+				config.DefaultHashtags.ForEach(h => { sb.Append(String.Format("{0} ", h)); currentTags.Add(h); }) ;
 			}
 
-			// get the list of hashtags
-			string[] sep = new string[] { "#" };
-			List<string> hashtags = ReadListFromFile(path, sep);
-			if (hashtags.Count.Equals(0))
-				hashtags = new List<string>() { "MAGA", "Trump2020", "KAG" }; // Nothing to read so MAGA
+			if (config.Hashtags.Count.Equals(0))
+				config.Hashtags = new List<string>() { "MAGA", "Trump2020", "KAG" }; // Nothing to read so MAGA
 
-			if (hashtags.Count > 0)
+			if (config.Hashtags.Count > 0)
 			{
 				// get a random set of hashtags
 				for (int eye = 0; eye < hashtagCount; eye++)
@@ -387,13 +405,13 @@ namespace MemeCannon
 					int count = 0;
 					while (!ok)
 					{
-						int id = rnd.Next(0, hashtags.Count);
-						string hash = hashtags[id];
+						int id = rnd.Next(0, config.Hashtags.Count);
+						string hash = config.Hashtags[id];
 						//Dont add a duplicate
 						if (!sb.ToString().Contains(hash, StringComparison.InvariantCulture))
 						{
-							// Put the hash back in since the split took it out
-							sb.Append(String.Format("#{0} ", hash));
+							sb.Append(String.Format("{0} ", hash));
+							currentTags.Add(hash);
 							ok = true;
 						}
 
@@ -403,6 +421,9 @@ namespace MemeCannon
 					}
 				}
 			}
+
+			//Output
+			currentTags.ForEach(h => Console.Write("{0} ", h));
 		}
 
 		/// <summary>
@@ -410,17 +431,12 @@ namespace MemeCannon
 		/// </summary>
 		/// <param name="sb"></param>
 		/// <param name="memePath"></param>
-		private static void AddMentions(StringBuilder sb, string memePath)
+		private static void AddMentions(StringBuilder sb, CampaignConfig config)
 		{
 			int mentionsCount = 1; // Try and keep under the spammeradar, only 1 per tweet
 			Random rnd = new Random();
-			string path = String.Format(@"{0}\hashtags\mentions.txt", memePath);
 
-			// get the list of mentions
-			string[] sep = new string[] { "@" };
-			List<string> mentions = ReadListFromFile(path, sep);
-
-			if (mentions.Count > 0)
+			if (config.Mentions.Count > 0)
 			{
 				// get a random set of mentions
 				for (int eye = 0; eye < mentionsCount; eye++)
@@ -429,13 +445,12 @@ namespace MemeCannon
 					int count = 0;
 					while (!ok)
 					{
-						int id = rnd.Next(0, mentions.Count);
-						string mention = mentions[id];
+						int id = rnd.Next(0, config.Mentions.Count);
+						string mention = config.Mentions[id];
 						//Dont add a duplicate
 						if (!sb.ToString().Contains(mention, StringComparison.InvariantCulture))
 						{
-							// Put the @ back in since the split took it out
-							sb.Append(String.Format(".@{0} ", mention));
+							sb.Append(String.Format(".{0} ", mention));
 							ok = true;
 						}
 
@@ -505,6 +520,54 @@ namespace MemeCannon
 
 			Console.WriteLine("{0} TPH", Program.TweetsPerHour);
 			return returnVal;
+		}
+
+		private static string GetAssemblyVersion()
+		{
+			return System.Reflection.Assembly.GetEntryAssembly().GetName().Version.ToString();
+		}
+
+		/// <summary>
+		/// Util method to check and see if we need to upgrade the CampaignConfig files. Saves a new migrated CampaignConfig.json if needed
+		/// </summary>
+		/// <param name="memePath"></param>
+		private static CampaignConfig GetCampaignConfig(string memePath)
+		{
+			string path = String.Format(@"{0}\hashtags\CampaignConfig.json", memePath);
+			CampaignConfig config = new CampaignConfig();
+			
+			// Try and read in the new CampaignConfig.json, upgrade if we need to
+			if (! File.Exists(path))
+			{
+				//Read in the old vals and transfer!
+				string path1 = String.Format(@"{0}\hashtags\hashtags.txt", memePath);
+				string[] sep = new string[] { "#" };
+				List<string> list = ReadListFromFile(path1, sep);
+				//prepend each with the sep and add to the config
+				list.ForEach(s => config.Hashtags.Add(String.Format("{0}{1}", sep[0], s)));
+
+				path1= String.Format(@"{0}\hashtags\mentions.txt", memePath);
+				sep = new string[] { "@" };
+				list = ReadListFromFile(path, sep);
+				list.ForEach(s => config.Mentions.Add(String.Format("{0}{1}", sep[0], s)));
+
+				//Set the vals of the things we want to be able to override per campaign
+				config.DefaultHashtags = Program.CannonCfg.DefaultHashtags;
+				config.HashTagCount = Program.CannonCfg.HashTagCount;
+				config.MaximumDelay = Program.CannonCfg.MaximumDelay;
+				config.MinimumDelay = Program.CannonCfg.MinimumDelay;
+			}
+			else
+				config = FileHelper.ReadJSONObjectFromFile(path).ToObject<CampaignConfig>();
+
+			// Bring over the defaults from Program.CannonConfig if we need to
+			if (config.DefaultHashtags.Count.Equals(0))
+				config.DefaultHashtags = Program.CannonCfg.DefaultHashtags;
+
+			// Keep everything up to date
+			FileHelper.WriteJSONToFile<CampaignConfig>(path, config);
+
+			return config;
 		}
 	}
 }

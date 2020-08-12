@@ -5,8 +5,8 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <ApplicationIcon>kek.ico</ApplicationIcon>
     <StartupObject>MemeCannon.Program</StartupObject>
-    <AssemblyVersion>1.0.0.3</AssemblyVersion>
-    <FileVersion>1.0.0.3</FileVersion>
+    <AssemblyVersion>1.0.0.4</AssemblyVersion>
+    <FileVersion>1.0.0.4</FileVersion>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
@@ -29,11 +29,7 @@
   </ItemGroup>
 
   <Target Name="PreBuild" BeforeTargets="PreBuildEvent">
-    <Exec Command="IF $(ConfigurationName) == Release COPY /Y &quot;$(ProjectDir)App.config&quot; &quot;$(ProjectDir)App.debug.config&quot;&#xD;&#xA;IF $(ConfigurationName) == Release COPY /Y &quot;$(ProjectDir)App.release.config&quot; &quot;$(ProjectDir)App.config&quot;" />
-  </Target>
-
-  <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="IF $(ConfigurationName) == Release COPY /Y &quot;$(ProjectDir)App.debug.config&quot; &quot;$(ProjectDir)App.config&quot;" />
+    <Exec Command="IF $(ConfigurationName) == Debug COPY /Y &quot;$(ProjectDir)App.debug.config&quot; &quot;$(ProjectDir)App.config&quot;&#xD;&#xA;IF $(ConfigurationName) == Release COPY /Y &quot;$(ProjectDir)App.release.config&quot; &quot;$(ProjectDir)App.config&quot;" />
   </Target>
 
 </Project>
