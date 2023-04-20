@@ -1,10 +1,14 @@
 ﻿using System;
+//
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Versioning;
 using Tweetinvi;
+using Tweetinvi.Models;
+using Tweetinvi.Parameters;
+using Newtonsoft.Json.Linq;
 using System.Text;
 using SysThread = System.Threading;
 using System.Threading.Tasks;
@@ -29,8 +33,9 @@ namespace MemeCannon
 		{
 			try
 			{
-				await Initialize();
-                Engage();
+				Initialize();
+				Engage();
+				//GetTimelineTest();
 
                 Program.CampaignTimer.Stop();
 				TimeSpan ts = Program.CampaignTimer.Elapsed;
@@ -48,6 +53,46 @@ namespace MemeCannon
 				Console.WriteLine("Anykey to exit");
 				Console.ReadLine();
 			}
+		}
+
+		private static void GetTimelineTest()
+		{
+			RateLimit.RateLimitTrackerMode = RateLimitTrackerMode.TrackAndAwait;
+
+			RateLimit.QueryAwaitingForRateLimit += (sender, args) =>
+			{
+				Console.WriteLine($"Query : {args.Query} is awaiting for rate limits to be available!");
+			};
+
+			//var userId = 159053980;
+			var userId = "realDonaldTrump";
+			UserTimelineParameters userTimelineParameters = new UserTimelineParameters() 
+			{
+				SinceId = 1262787562206367744
+			};
+
+			//var lastTweets = Timeline.GetUserTimeline(userId, 200).ToArray();
+			var lastTweets = Timeline.GetUserTimeline(userId, userTimelineParameters).ToArray();
+
+			var allTweets = new List<ITweet>(lastTweets);
+			var beforeLast = allTweets;
+
+			while (lastTweets.Length > 0 && allTweets.Count <= 3200)
+			{
+				var idOfOldestTweet = lastTweets.Select(x => x.Id).Min();
+				Console.WriteLine($"Oldest Tweet Id = {idOfOldestTweet}");
+
+				var timelineRequestParameters = new UserTimelineParameters
+				{
+					// We ensure that we only get tweets that have been posted BEFORE the oldest tweet we received
+					MaxId = idOfOldestTweet - 1,
+					MaximumNumberOfTweetsToRetrieve = allTweets.Count > 3000 ? (3200 - allTweets.Count) : 200
+				};
+
+				lastTweets = Timeline.GetUserTimeline(userId, timelineRequestParameters).ToArray();
+				allTweets.AddRange(lastTweets);
+			}
+
 		}
 
 		/// <summary>Util method to iteratively check/prompt the console response for an integer or an X</summary>
@@ -221,11 +266,7 @@ namespace MemeCannon
 
 				Program.TweetTimes = new List<DateTime>();
 
-				//UserCredentials
-				Program.client = new TwitterClient(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
-				client.Config.TweetMode = TweetMode.Extended;
-				await Program.client.Auth.InitializeClientBearerTokenAsync();
-
+				Auth.SetUserCredentials(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
 				Console.WriteLine("\n*****************");
 			}
 			catch (Exception ex)
@@ -240,10 +281,13 @@ namespace MemeCannon
 		/// <summary>Prompt the user to Authorize the MemeCannon to make tweets</summary>
 		private static async Task<bool> UpdateUserSettings()
 		{
-			Console.WriteLine("Updating user settings for the first run");
-            // Create a new set of credentials for the application.
-            TwitterClient appClient = new TwitterClient(new Tweetinvi.Models.TwitterCredentials(twitterConsumerKey, twitterConsumerSecret));
-            Tweetinvi.Models.IAuthenticationRequest authRequest = await appClient.Auth.RequestAuthenticationUrlAsync();
+			ITwitterCredentials appCreds = Auth.SetApplicationOnlyCredentials(twitterConsumerKey, twitterConsumerSecret);
+			
+			// This method execute the required webrequest to set the bearer Token
+			Auth.InitializeApplicationOnlyCredentials(appCreds);
+
+			// Create a new set of credentials for the application.
+			TwitterCredentials appCredentials = new TwitterCredentials(twitterConsumerKey, twitterConsumerSecret);
 
 			ProcessStartInfo psi = new ProcessStartInfo(authRequest.AuthorizationURL)
 			{
@@ -270,10 +314,8 @@ namespace MemeCannon
 			// Save off the accessToken and accessTokenSecret
 			Program.CannonCfg.AccessToken = userCredentials.AccessToken;
 			Program.CannonCfg.AccessTokenSecret = userCredentials.AccessTokenSecret;
-			
-			string strang = JsonSerializer.Serialize(Program.CannonCfg);
-			FileHelper.WriteJSONToFile("./CannonConfig.json", strang);
-			return true;
+
+			FileHelper.WriteJSONToFile("./CannonConfig.json", Program.CannonCfg.ToJson());
 		}
 
 		private static void DisplayFrameworkName()
@@ -319,11 +361,7 @@ namespace MemeCannon
 				return string.Empty;
 		}
 
-        /// <summary>Updated to run with TweetInvi and Twitter V2 API</summary>
-        /// <param name="text"></param>
-        /// <param name="imgPath"></param>
-        /// <returns></returns>
-        private static async Task<bool> TweetWithImage(string text, string imgPath)
+		private static Boolean TweetWithImage(string text, string imgPath)
 		{
 			if (imgPath.Length > 0)
 			{
@@ -346,10 +384,9 @@ namespace MemeCannon
                         Tweetinvi.Core.Web.ITwitterResult result = await tweet.PostTweet(request);
 						if (result.Response.IsSuccessStatusCode == true)
 						{
-							return true;
-						}
-
-						return false;
+							Medias = { media }
+						});
+						if (tweet != null) return true;
 					}
 				}
 			}
@@ -513,14 +550,8 @@ namespace MemeCannon
 		{
 			string path = String.Format(@"{0}\config\CampaignConfig.json", memePath);
 			CampaignConfig config = new CampaignConfig();
-
-			// create a config directory if needed
-			if (!Directory.Exists(Path.Combine(memePath, "config")))
-			{
-				Directory.CreateDirectory(Path.Combine(memePath, "config"));
-			}
-
-			// Try and read in the new CampaignConfig.json, create new if we need to
+			
+			// Try and read in the new CampaignConfig.json, upgrade if we need to
 			if (! File.Exists(path))
 			{
 				//Set the vals of the things we want to be able to override per campaign

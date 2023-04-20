@@ -67,3 +67,4 @@ CannonConfig.json : UserAccessToken and TokenSecret will be put in there by the 
 
 Abuse of the Mentions feature can cause your accounts to get banned. Review the Twitter Automation rules to make sure of your config
 https://help.twitter.com/en/rules-and-policies/twitter-automation
+
