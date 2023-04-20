@@ -1,12 +1,5 @@
 {
 	"AccessToken": "",
 	"AccessTokenSecret": "",
-	"DefaultHashtags": [
-		"#WWG1WGA",
-		"#ObamaGate",
-	],
-	"HashTagCount": 2,
-	"MinimumDelay": 3,
-	"MaximumDelay": 5,
-	"ImageSourceFolder": "F:\\MemeCannon\\Ammo\\"
+	"ImageSourceFolder": "D:\\DevFiles\\MemeCannon\\Ammo\\"
 }

@@ -1,0 +1,15 @@
+{
+  "DefaultHashtags": [
+    "#Testing"
+  ],
+  "Hashtags": [
+    "#ItsWorking",
+    "#Ping"
+  ],
+  "Mentions": [
+    "@memecannon17"
+  ],
+  "HashTagCount": 2,
+  "MinimumDelay": 0,
+  "MaximumDelay": 3
+}
