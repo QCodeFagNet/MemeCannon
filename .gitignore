@@ -340,3 +340,5 @@ ASALocalRun/
 healthchecksdb
 /MemeCannon/App.debug.config
 /MemeCannon/App.release.config
+/MemeCannon/App.config
+/MemeCannon/App.debug.config

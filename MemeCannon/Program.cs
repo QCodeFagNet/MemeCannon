@@ -1,19 +1,16 @@
 ﻿using System;
-//
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.Versioning;
 using Tweetinvi;
-using Tweetinvi.Models;
-using Tweetinvi.Parameters;
-using Newtonsoft.Json.Linq;
 using System.Text;
 using SysThread = System.Threading;
 using System.Threading.Tasks;
 using System.Diagnostics;
 using System.Configuration;
+using System.Text.Json;
 
 namespace MemeCannon
 {
@@ -26,18 +23,18 @@ namespace MemeCannon
 		private static int TweetsPerHour { get; set; }
 		private static List<DateTime> TweetTimes { get; set; }
 		private static Stopwatch CampaignTimer { get; set; }
+		private static TwitterClient client { get; set; }
 
-		static void Main(string[] args)
+		static async Task Main(string[] args)
 		{
 			try
 			{
-				Initialize();
-				Engage();
-				//GetTimelineTest();
+				await Initialize();
+                Engage();
 
-				Program.CampaignTimer.Stop();
+                Program.CampaignTimer.Stop();
 				TimeSpan ts = Program.CampaignTimer.Elapsed;
-				string runTime = String.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, ts.Milliseconds / 10);
+				string runTime = string.Format("{0:00}:{1:00}:{2:00}.{3:00}", ts.Hours, ts.Minutes, ts.Seconds, (ts.Milliseconds / 10));
 				Console.WriteLine("Done {0}", DateTime.Now);
 				Console.WriteLine("Runtime: {0}", runTime);
 				Console.WriteLine("Anykey to exit");
@@ -51,46 +48,6 @@ namespace MemeCannon
 				Console.WriteLine("Anykey to exit");
 				Console.ReadLine();
 			}
-		}
-
-		private static void GetTimelineTest()
-		{
-			RateLimit.RateLimitTrackerMode = RateLimitTrackerMode.TrackAndAwait;
-
-			RateLimit.QueryAwaitingForRateLimit += (sender, args) =>
-			{
-				Console.WriteLine($"Query : {args.Query} is awaiting for rate limits to be available!");
-			};
-
-			//var userId = 159053980;
-			var userId = "realDonaldTrump";
-			UserTimelineParameters userTimelineParameters = new UserTimelineParameters() 
-			{
-				SinceId = 1262787562206367744
-			};
-
-			//var lastTweets = Timeline.GetUserTimeline(userId, 200).ToArray();
-			var lastTweets = Timeline.GetUserTimeline(userId, userTimelineParameters).ToArray();
-
-			var allTweets = new List<ITweet>(lastTweets);
-			var beforeLast = allTweets;
-
-			while (lastTweets.Length > 0 && allTweets.Count <= 3200)
-			{
-				var idOfOldestTweet = lastTweets.Select(x => x.Id).Min();
-				Console.WriteLine($"Oldest Tweet Id = {idOfOldestTweet}");
-
-				var timelineRequestParameters = new UserTimelineParameters
-				{
-					// We ensure that we only get tweets that have been posted BEFORE the oldest tweet we received
-					MaxId = idOfOldestTweet - 1,
-					MaximumNumberOfTweetsToRetrieve = allTweets.Count > 3000 ? (3200 - allTweets.Count) : 200
-				};
-
-				lastTweets = Timeline.GetUserTimeline(userId, timelineRequestParameters).ToArray();
-				allTweets.AddRange(lastTweets);
-			}
-
 		}
 
 		/// <summary>Util method to iteratively check/prompt the console response for an integer or an X</summary>
@@ -162,7 +119,7 @@ namespace MemeCannon
 			List<string> postedFileNames = new List<string>();
 			List<string> imageFileTypes = new List<string>() { ".jpg", ".jpeg", ".gif", ".png" };
 			Random rnd = new Random();
-			string jsonpath = String.Format(@"{0}\hashtags\filenames.json", path); //TODO Could monitor for a change?
+			string jsonpath = String.Format(@"{0}\config\filenames.json", path); //TODO Could monitor for a change?
 			postedFileNames = FileHelper.ReadJSONFromFile(jsonpath).ToObject<List<string>>().ToList();
 
 			existingFileNames = Directory.EnumerateFiles(path)
@@ -195,12 +152,12 @@ namespace MemeCannon
 				AddHashtags(sb, path, addDefaultHashtags); // reloads every time so we can inject new hashtags
 
 				//DOIT
-				bool twatted = TweetWithImage(sb.ToString(), filename);
+				bool twatted = TweetWithImage(sb.ToString(), filename).Result;
 				if (twatted)
 				{
 					// Add to the list of what we've already twatted and show the user
 					postedFileNames.Add(filename);
-					FileHelper.WriteJSONToFile(String.Format(@"{0}\hashtags\filenames.json", path), postedFileNames);
+					FileHelper.WriteJSONToFile(String.Format(@"{0}\config\filenames.json", path), postedFileNames);
 					string fn = Path.GetFileName(filename);
 					Console.ForegroundColor = ConsoleColor.Green;
 					Console.WriteLine("\n{0}", fn);
@@ -229,7 +186,7 @@ namespace MemeCannon
 			}
 		}
 
-		private static void Initialize()
+		private static async Task Initialize()
 		{
 			try
 			{
@@ -253,19 +210,22 @@ namespace MemeCannon
 				//Check to see if we have already generated an accessToken and accessTokenSecret
 				// If not, generate and save so we don't have to do it every time
 				if (Program.CannonCfg.AccessToken.Length == 0)
+				//if (true)
 				{
-					UpdateUserSettings();
+					await UpdateUserSettings();
 				}
-				//Output default hashtags
-				Console.Write("Default Hashtags: ");
-				Program.CannonCfg.DefaultHashtags.ForEach(h => Console.Write("{0} ", h));
 
 				// Save this again to make sure everything is up to date
-				FileHelper.WriteJSONToFile("CannonConfig.json", Program.CannonCfg.ToJson());
+				string strang = JsonSerializer.Serialize(Program.CannonCfg);
+				FileHelper.WriteJSONToFile("./CannonConfig.json", strang);
 
 				Program.TweetTimes = new List<DateTime>();
 
-				Auth.SetUserCredentials(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
+				//UserCredentials
+				Program.client = new TwitterClient(Program.twitterConsumerKey, Program.twitterConsumerSecret, Program.CannonCfg.AccessToken, Program.CannonCfg.AccessTokenSecret);
+				client.Config.TweetMode = TweetMode.Extended;
+				await Program.client.Auth.InitializeClientBearerTokenAsync();
+
 				Console.WriteLine("\n*****************");
 			}
 			catch (Exception ex)
@@ -278,18 +238,14 @@ namespace MemeCannon
 		}
 
 		/// <summary>Prompt the user to Authorize the MemeCannon to make tweets</summary>
-		private static void UpdateUserSettings()
+		private static async Task<bool> UpdateUserSettings()
 		{
-			ITwitterCredentials appCreds = Auth.SetApplicationOnlyCredentials(twitterConsumerKey, twitterConsumerSecret);
-			
-			// This method execute the required webrequest to set the bearer Token
-			Auth.InitializeApplicationOnlyCredentials(appCreds);
+			Console.WriteLine("Updating user settings for the first run");
+            // Create a new set of credentials for the application.
+            TwitterClient appClient = new TwitterClient(new Tweetinvi.Models.TwitterCredentials(twitterConsumerKey, twitterConsumerSecret));
+            Tweetinvi.Models.IAuthenticationRequest authRequest = await appClient.Auth.RequestAuthenticationUrlAsync();
 
-			// Create a new set of credentials for the application.
-			TwitterCredentials appCredentials = new TwitterCredentials(twitterConsumerKey, twitterConsumerSecret);
-
-			IAuthenticationContext authenticationContext = AuthFlow.InitAuthentication(appCredentials);
-			ProcessStartInfo psi = new ProcessStartInfo(authenticationContext.AuthorizationURL)
+			ProcessStartInfo psi = new ProcessStartInfo(authRequest.AuthorizationURL)
 			{
 				UseShellExecute = true,
 				Verb = "open"
@@ -297,18 +253,27 @@ namespace MemeCannon
 			// Causes a WebBrowser to open and the user needs to OK app access
 			Process.Start(psi);
 
+			Console.WriteLine();
 			// Ask the user to enter the pin code given by Twitter
 			Console.WriteLine("Enter PIN Code given by Twitter to continue:");
 			string pinCode = Console.ReadLine();
+			while(string.IsNullOrEmpty(pinCode))
+			{
+				Console.WriteLine("No PIN, try again");
+				Console.WriteLine("Enter PIN Code given by Twitter to continue:");
+				pinCode = Console.ReadLine();
+			}
 
-			// With this pin code it is now possible to get the credentials back from Twitter
-			ITwitterCredentials userCredentials = AuthFlow.CreateCredentialsFromVerifierCode(pinCode, authenticationContext);
+            // With this pin code it is now possible to get the credentials back from Twitter
+            Tweetinvi.Models.ITwitterCredentials userCredentials = await appClient.Auth.RequestCredentialsFromVerifierCodeAsync(pinCode, authRequest);
 
 			// Save off the accessToken and accessTokenSecret
 			Program.CannonCfg.AccessToken = userCredentials.AccessToken;
 			Program.CannonCfg.AccessTokenSecret = userCredentials.AccessTokenSecret;
-
-			FileHelper.WriteJSONToFile("./CannonConfig.json", Program.CannonCfg.ToJson());
+			
+			string strang = JsonSerializer.Serialize(Program.CannonCfg);
+			FileHelper.WriteJSONToFile("./CannonConfig.json", strang);
+			return true;
 		}
 
 		private static void DisplayFrameworkName()
@@ -327,7 +292,7 @@ namespace MemeCannon
 			DirectoryInfo di = new DirectoryInfo(Program.CannonCfg.ImageSourceFolder);
 			Dictionary<int, string> dirs = di.GetDirectories().Select(p => p.FullName).OrderBy(n => n).ToDictionary(p => key++);
 			// Now output the menu
-			Console.WriteLine("\nSelect target:");
+			Console.WriteLine("\nSelect target campaign:");
 			foreach(KeyValuePair<int, string> kvp in dirs)
 			{
 				string strang = kvp.Value.Split('\\').Last(); // Should get us the Subject, not the full path
@@ -354,21 +319,37 @@ namespace MemeCannon
 				return string.Empty;
 		}
 
-		private static Boolean TweetWithImage(string text, string imgPath)
+        /// <summary>Updated to run with TweetInvi and Twitter V2 API</summary>
+        /// <param name="text"></param>
+        /// <param name="imgPath"></param>
+        /// <returns></returns>
+        private static async Task<bool> TweetWithImage(string text, string imgPath)
 		{
 			if (imgPath.Length > 0)
 			{
 				if (File.Exists(imgPath))
 				{
 					byte[] imgdata = System.IO.File.ReadAllBytes(imgPath);
-					Tweetinvi.Models.IMedia media = Upload.UploadBinary(imgdata);
+					Tweetinvi.Models.IMedia media = await Program.client.Upload.UploadBinaryAsync(imgdata);//UploadTweetImageAsync // so you can upload animated gifs
 					if (media.IsReadyToBeUsed)
 					{
-						Tweetinvi.Models.ITweet tweet = Tweet.PublishTweet(text, new PublishTweetOptionalParameters
+						var tweet = new TweetsV2Poster(Program.client);
+						var request = new TweetV2PostRequest
 						{
-							Medias = { media }
-						});
-						if (tweet != null) return true;
+							Text = text,
+							Media = new TweetV2Media()
+							{
+								MediaId = new string[] { media.UploadedMediaInfo.MediaIdStr },
+							}
+						};
+
+                        Tweetinvi.Core.Web.ITwitterResult result = await tweet.PostTweet(request);
+						if (result.Response.IsSuccessStatusCode == true)
+						{
+							return true;
+						}
+
+						return false;
 					}
 				}
 			}
@@ -392,9 +373,6 @@ namespace MemeCannon
 			{
 				config.DefaultHashtags.ForEach(h => { sb.Append(String.Format("{0} ", h)); currentTags.Add(h); }) ;
 			}
-
-			if (config.Hashtags.Count.Equals(0))
-				config.Hashtags = new List<string>() { "MAGA", "Trump2020", "KAG" }; // Nothing to read so MAGA
 
 			if (config.Hashtags.Count > 0)
 			{
@@ -486,7 +464,7 @@ namespace MemeCannon
 			else
 			{
 				//Save them a new one
-				Console.WriteLine(@"No mentions for this campaign {0} : Use format @username1@userName2", path);
+				Console.WriteLine(@"No mentions for this campaign {0} : Use format @username1", path);
 				FileHelper.WriteJSONToFile(path, String.Empty);
 				return new List<string>();
 			}
@@ -528,41 +506,33 @@ namespace MemeCannon
 		}
 
 		/// <summary>
-		/// Util method to check and see if we need to upgrade the CampaignConfig files. Saves a new migrated CampaignConfig.json if needed
+		/// Util method to check and see if we need to upgrade the CampaignConfig files. Create a new CampaignConfig.json if needed
 		/// </summary>
 		/// <param name="memePath"></param>
 		private static CampaignConfig GetCampaignConfig(string memePath)
 		{
-			string path = String.Format(@"{0}\hashtags\CampaignConfig.json", memePath);
+			string path = String.Format(@"{0}\config\CampaignConfig.json", memePath);
 			CampaignConfig config = new CampaignConfig();
-			
-			// Try and read in the new CampaignConfig.json, upgrade if we need to
+
+			// create a config directory if needed
+			if (!Directory.Exists(Path.Combine(memePath, "config")))
+			{
+				Directory.CreateDirectory(Path.Combine(memePath, "config"));
+			}
+
+			// Try and read in the new CampaignConfig.json, create new if we need to
 			if (! File.Exists(path))
 			{
-				//Read in the old vals and transfer!
-				string path1 = String.Format(@"{0}\hashtags\hashtags.txt", memePath);
-				string[] sep = new string[] { "#" };
-				List<string> list = ReadListFromFile(path1, sep);
-				//prepend each with the sep and add to the config
-				list.ForEach(s => config.Hashtags.Add(String.Format("{0}{1}", sep[0], s)));
-
-				path1= String.Format(@"{0}\hashtags\mentions.txt", memePath);
-				sep = new string[] { "@" };
-				list = ReadListFromFile(path, sep);
-				list.ForEach(s => config.Mentions.Add(String.Format("{0}{1}", sep[0], s)));
-
 				//Set the vals of the things we want to be able to override per campaign
-				config.DefaultHashtags = Program.CannonCfg.DefaultHashtags;
-				config.HashTagCount = Program.CannonCfg.HashTagCount;
-				config.MaximumDelay = Program.CannonCfg.MaximumDelay;
-				config.MinimumDelay = Program.CannonCfg.MinimumDelay;
+				config.Hashtags = new List<string>() { "MAGA", "Trump2024", "KAG" }; // Nothing to read so MAGA
+				config.Mentions.Add("@memecannon17");
+				config.DefaultHashtags.Add("#DefaultHashtag1");			
+				config.HashTagCount = 2;
+				config.MaximumDelay = 1;
+				config.MinimumDelay = 3;
 			}
 			else
 				config = FileHelper.ReadJSONObjectFromFile(path).ToObject<CampaignConfig>();
-
-			// Bring over the defaults from Program.CannonConfig if we need to
-			if (config.DefaultHashtags.Count.Equals(0))
-				config.DefaultHashtags = Program.CannonCfg.DefaultHashtags;
 
 			// Keep everything up to date
 			FileHelper.WriteJSONToFile<CampaignConfig>(path, config);
