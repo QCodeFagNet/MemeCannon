@@ -2,6 +2,8 @@
 >.NET Core console app that tweets folders/campaigns of nonrepeating images + hashtags randomly every 1-3 minutes till you stop it, or it runs out of images.
 
 Functions using the Twitter API. You MUST have a Twitter Developer account. They are free and you can apply here https://developer.twitter.com/en 
+Create a Twitter app with 'Read and Write' app permissions. The type of app should be a 'Web App, Automated App or Bot'
+
 Everything is well below their spamlimits, 1-2 tweets per minute. No install, just run. I've been using it with MemeFarmers mega meme archives for a couple months. Turn it on and it just runs thru 500+ files until you stop it or it's done. It's running right now.
 
 X:\MemeCannon\Bernie <- Campaign folder
